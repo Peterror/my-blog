@@ -1,0 +1,45 @@
+---
+layout: post
+title:  "Practical Reverse Engineering 1"
+date:   2019-02-15
+categories: RE
+---
+
+## Intro
+This starts series of posts which contain exercises made while reading Practical Reverse Engineering book by Bruce Dang, Alexandre Gazet and Elias Bachaalany.
+
+Full ex. names are omitted.
+That's why you may need to have a copy of the book in order to correctly understand what I'm talking about.
+
+## Exercise p.11
+
+### Explain the type of the `[EBP+8]` and `[EBP+C]` in line `1` and `8` [of the snippet].
+`[EBP+8]` is a pointer to the value stored at `ebp+8`. Probably the first attribute from some function. Char string.
+
+`[EBP+C]` is a pointer to the value stored at `ebp+C`. Probably the second attribute from some function. Char string (probably 1 element).
+
+### Explain the snippet
+
+{% highlight nasm %}
+;; Part1 Measuring the string
+  mov edi, [ebp+8]     ; Sets EDI to (probably) the first function parameter
+  mov edx, edi         ; EDX = EDI (backup EDI)
+  xor eax, eax         ; EAX = 0
+  or ecx, 0FFFFFFFFh   ; ECX = 0xFFFFFFFF
+  repne scasb          ; Unitl ECX != 0 repeat EDI++/--; ECX--;
+                       ; Break if *EDI == AL;
+                       ; This means EDI points to a char string.
+                       ; In the end ECX = 0xFFFFFFFF - strlen('\0' included)
+  add ecx, 2           ; ECX = ((0xFFFFFFFF - strlen) + 2)
+  neg ecx              ; ECX = (0x100000000 - ECX)
+                       ; ECX = strlen - 1 ('\0')
+;; Part2 Reinitializing the string
+  mov al, [ebp+0Ch]    ; Set AL to (probably) the second function parameter
+  mov edi, edx         ; EDI = EDX (backuped EDI)
+  rep stosb            ; *EDI = AL; EDI++ or EDI--
+                       ; This initializes the string from [ebp+8]
+                       ; with value at [EBP+C] while keeping the trailing '\0'
+  mov eax, edx         ; EAX = EDX (backuped EDI)
+{% endhighlight %}
+
+This script sets the `[EBP+8]` string values to the value at `[EBP+C]`. Then sets EAX to `[EBP+8]` (maybe it's a return value of (char *)).
