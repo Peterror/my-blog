@@ -1,0 +1,48 @@
+---
+layout: post
+title:  "Practical Reverse Engineering 2"
+date:   2019-02-16
+categories: RE
+---
+
+## Exercise p.17
+
+### 1 Explain how you would read the `EIP` value. Why not `MOV EAX, EIP`?
+{% highlight nasm %}
+  call get_EIP
+  ;; EIP is now in EAX
+get_EIP:
+  push ebp
+  mov ebp, esp      
+  mov eax, [ebp+4]  ; [EBP] == EBP; [EBP+4] == EIP(when the function was called)
+  mov esp, ebp      
+  pop ebp
+  ret
+{% endhighlight %}
+
+`MOV` is not implemented for `EIP` register operations
+
+### 2 Two code sequences to set `EIP` to `0xAABBCCDD`.
+#### First
+{% highlight nasm %}
+  call 0xAABBCCDD  ; push EIP; EIP = 0xAABBCCDD
+{% endhighlight %}
+
+#### Second
+{% highlight nasm %}
+  push 0xAABBCCDD
+  ret               ; pop EIP
+{% endhighlight %}
+
+#### Third
+{% highlight nasm %}
+  jmp 0xAABBCCDD    ; EIP = 0xAABBCCDD
+{% endhighlight %}
+
+### 3 In `addme()`, what would happen if the stack was not properly restored before `ret`?
+If `ESP` points to the `BSP` backup value, the program would have started executing contents of the stack segment.
+Else program would go to the `[ESP]` address(wherever it would be).
+
+### 4 In 32 bit x86 what happens when the return value does not fit in 32-bit register? Does the mechanism change from compiler to compiler?
+If it doesn't fit then it must be returned through the stack (dynamic memory allocation), through multiple registers or both.
+Similar to the mechanisms of passing many arguments to a function.
